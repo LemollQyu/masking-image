@@ -1,103 +1,334 @@
+"use client";
 import Image from "next/image";
+import ImageUploader from "./components/upLoaderImage";
+import ColorInputBox from "./components/colorInputBox";
+import DominanceColor from "./components/dominanceColor";
+import ModeSelector from "./components/modePerubahan";
+import { useState } from "react";
+import ToleranceColor from "./components/dominanceColor";
+
+type Mode = "color" | "texture" | null;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [mode, setMode] = useState<Mode>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const [isMake, setIsMake] = useState<String>("");
+
+  const [imageFile, setImageFile] = useState<any>();
+  const [hexFile, setHexFile] = useState<File | any>(null);
+  const [targetColor, setTargetColor] = useState<any>("");
+  const [tolerance, setTolerance] = useState<any>(0);
+  const [textureFile, setTextureFile] = useState<File | any>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTexture, setIsLoadingTexture] = useState(false);
+
+  // data masking texture
+  const [dataTexture, setDataTexture] = useState<{
+    result_images: string[];
+  } | null>(null);
+
+  console.log("data texture = ", dataTexture);
+
+  // data color masking
+  const [dataColor, setDataColor] = useState<{
+    result_images: string[];
+  } | null>(null);
+
+  const [selectedImageColor, setSelectedImageColor] = useState<string | null>(
+    null
+  );
+  const [selectedImageTexture, setSelectedImageTexture] = useState<
+    string | null
+  >(null);
+
+  // cek jika data file file yang dibutuhkan tidak ada
+  const isButtonDisabled =
+    isLoading ||
+    !imageFile ||
+    !hexFile ||
+    !targetColor ||
+    tolerance === 0 ||
+    tolerance === "" ||
+    tolerance === null;
+
+  const handleClickColor = async () => {
+    setDataTexture(null); // reset texture hasil
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("target_color", String(targetColor));
+    formData.append("hex_list_file", hexFile);
+    formData.append("tolerance", String(tolerance));
+
+    try {
+      setIsLoading(true); // Mulai loading
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API}/replace-color/`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      setDataColor(data); // Isi hasil gambar
+    } catch (error) {
+      console.error("Failed to process:", error);
+    } finally {
+      setIsLoading(false); // Selesai loading
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!selectedImageColor) return;
+
+    try {
+      const response = await fetch(selectedImageColor);
+      const blob = await response.blob();
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedImageColor}-hasil-gambar.png`; // Nama file saat di-download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Gagal mendownload gambar:", error);
+    }
+  };
+
+  // handle texture api
+  const handleClickTexture = async () => {
+    setDataColor(null); // Reset data color
+    if (!textureFile) {
+      console.error("Texture file is missing");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("target_color", String(targetColor));
+    formData.append("texture", textureFile);
+    formData.append("tolerance", String(tolerance));
+
+    try {
+      setIsLoadingTexture(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API}/replace-with-texture/`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const blob = await response.blob();
+      const imageURL = URL.createObjectURL(blob);
+      setDataTexture({ result_images: [imageURL] });
+    } catch (error) {
+      console.error("Failed to process:", error);
+    } finally {
+      setIsLoadingTexture(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="h-screen  w-full p-3">
+        <div className=" h-full rounded-t-3xl rounded-b-3xl bg-linear-to-t from-[#caddeb] to-[#7c9bc2]">
+          <h1 className="runde-600 text-3xl  mx-auto pt-20 text-white w-96 text-center">
+            Edit Warna & Teksture Warna secara instant
+          </h1>
+          <p className="runde-400 mx-auto w-96 text-center text-white pt-4">
+            Ubah warna dan tekstur gambar dengan cepat dan mudah. Cocok untuk
+            desain, presentasi, atau konten visual—semua bisa dilakukan secara
+            instan tanpa ribet.
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+      </div>
+
+      {/* padding text */}
+      <div className="my-2">
+        <p className="runde-600 text-center text-2xl">
+          Simple{" "}
           <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+            height={20}
+            width={20}
+            alt="icon"
+            src="/icon/icon.png"
+            style={{ display: "inline-block", verticalAlign: "middle" }}
+          />{" "}
+          Clicks, Stunning Changes.
+        </p>
+      </div>
+
+      {/* edit masking image */}
+      <div className="flex mt-4 gap-3 w-full px-20 ">
+        {/* upload image */}
+        <div className="w-1/2">
+          <ImageUploader onFileChange={(file) => setImageFile(file)} />
+        </div>
+        <div className="w-1/2 flex flex-col gap-2">
+          {/* warna target */}
+          <ColorInputBox onColorChange={(color) => setTargetColor(color)} />
+
+          <ToleranceColor onToleranceChange={(value) => setTolerance(value)} />
+          <ModeSelector
+            mode={mode}
+            setMode={setMode}
+            onHexFileChange={(file) => setHexFile(file)}
+            onTextureFileChange={(file) => setTextureFile(file)}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+          {/* Tombol Proses */}
+          {mode === "color" ? (
+            <button
+              onClick={handleClickColor}
+              disabled={isButtonDisabled}
+              className={`w-full rounded-md transition-all h-[40px] border flex justify-center items-center ${
+                isButtonDisabled
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "hover:bg-[#b8cce0]"
+              }`}
+            >
+              {isLoading ? "Processing..." : "Process 🎨 With Color"}
+            </button>
+          ) : mode === "texture" ? (
+            <button
+              onClick={handleClickTexture}
+              className="w-full rounded-md hover:bg-[#b8cce0] transition-all h-[40px] border flex justify-center items-center"
+            >
+              Process 🧵 With Texture
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* menampilkan data iamge color hasil dari API */}
+      <div className="border border-dashed border-gray-300 p-4 mt-5 mx-20">
+        {!isLoadingTexture &&
+          dataTexture &&
+          dataTexture.result_images.length > 0 && (
+            <div className="flex flex-wrap gap-4 justify-center mt-5">
+              {dataTexture.result_images.map((src, index) => (
+                <div
+                  key={index}
+                  className="w-[300px] cursor-pointer hover:opacity-95 transition-transform duration-200"
+                  onClick={() => setSelectedImageTexture(src)}
+                >
+                  <Image
+                    src={src}
+                    alt={`Texture Result ${index}`}
+                    width={300}
+                    height={300}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+        {!isLoading && dataColor && dataColor.result_images.length > 0 && (
+          <div className="flex flex-wrap gap-4 justify-center mt-5">
+            {dataColor.result_images.map((src, index) => {
+              const formattedSrc = `http://localhost:8000/${src.replace(
+                /\\/g,
+                "/"
+              )}`;
+              return (
+                <div
+                  key={index}
+                  className="w-[300px] cursor-pointer hover:opacity-95 transition-transform duration-200"
+                  onClick={() =>
+                    setSelectedImageColor(`${formattedSrc}?t=${Date.now()}`)
+                  }
+                >
+                  <Image
+                    src={`${formattedSrc}?t=${Date.now()}`}
+                    alt={`Result ${index}`}
+                    width={300}
+                    height={300}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* preview & download */}
+      {selectedImageColor && (
+        <div className="fixed inset-0 z-50 bg-gray-600/75 flex justify-center items-center">
+          <div className="relative bg-white p-4 rounded shadow-lg max-w-3xl max-h-[90vh] overflow-auto">
+            {/* close btn */}
+            <button
+              onClick={() => setSelectedImageColor(null)}
+              className="absolute top-2 right-2 text-white bg-black rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* download btn */}
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={handleDownloadImage}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Download Gambar
+              </button>
+            </div>
+
+            <Image
+              src={selectedImageColor}
+              alt="Preview"
+              width={800}
+              height={800}
+              className="object-contain"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* preview dan download texture */}
+
+      {selectedImageTexture && (
+        <div className="fixed inset-0 z-50 bg-gray-600/75 flex justify-center items-center">
+          <div className="relative bg-white p-4 rounded shadow-lg max-w-3xl max-h-[90vh] overflow-auto">
+            {/* Close button */}
+            <button
+              onClick={() => setSelectedImageTexture(null)}
+              className="absolute top-2 right-2 text-white bg-black rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* Download button */}
+            <div className="flex justify-center mt-4">
+              <a
+                href={selectedImageTexture}
+                download
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Download Gambar
+              </a>
+            </div>
+
+            {/* Preview Image */}
+            <Image
+              src={`${selectedImageTexture}`}
+              alt="Preview Texture"
+              width={800}
+              height={800}
+              className="object-contain mt-4"
+            />
+          </div>
+        </div>
+      )}
+
+      <div></div>
+
+      <div className="h-[60px]"></div>
+    </>
   );
 }
