@@ -232,10 +232,9 @@ export default function Home() {
         {!isLoading && dataColor && dataColor.result_images.length > 0 && (
           <div className="flex flex-wrap gap-4 justify-center mt-5">
             {dataColor.result_images.map((src, index) => {
-              const formattedSrc = `http://localhost:8000/${src.replace(
-                /\\/g,
-                "/"
-              )}`;
+              const formattedSrc = `${
+                process.env.NEXT_PUBLIC_API
+              }/${src.replace(/\\/g, "/")}`;
               return (
                 <div
                   key={index}
