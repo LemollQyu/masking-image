@@ -9,6 +9,11 @@ const nextConfig = {
         port: "8000",
         pathname: "/static/results/**",
       },
+      {
+        protocol: "https",
+        hostname: "f68f-157-10-8-185.ngrok-free.app",
+        pathname: "/static/results/**",
+      },
     ],
   },
 };
