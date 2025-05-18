@@ -1,4 +1,3 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -11,7 +10,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "f68f-157-10-8-185.ngrok-free.app",
+        hostname: "d64d-157-20-244-151.ngrok-free.app",
         pathname: "/static/results/**",
       },
     ],
